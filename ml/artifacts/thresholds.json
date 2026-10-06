@@ -1,0 +1,10 @@
+{
+  "approve_min_score": 535,
+  "reject_max_score": 505,
+  "approve_share": 0.5445834326966852,
+  "approve_default_rate": 0.029538216560509555,
+  "review_share": 0.2279359160578403,
+  "review_default_rate": 0.07751569336123264,
+  "reject_share": 0.22748065124547445,
+  "reject_default_rate": 0.2065186314685981
+}
