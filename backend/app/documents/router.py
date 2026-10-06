@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -29,6 +29,7 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB
 @router.post("", response_model=DocumentOut, status_code=status.HTTP_201_CREATED)
 async def upload_document(
     application_id: int,
+    background_tasks: BackgroundTasks,
     doc_type: Literal["salary_slip", "bank_statement"] = Form(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -59,6 +60,10 @@ async def upload_document(
           entity_id=document.id, after={"application_id": application.id, "doc_type": doc_type})
     db.commit()
     db.refresh(document)
+    if settings.run_tasks_inline:
+        # Single-server deploy without a worker: run the same task in this process, after the response is sent.
+        background_tasks.add_task(extract_document.apply, args=[document.id])
+        return document
     try:
         extract_document.delay(document.id)  # hand the slow Gemini work to the Celery worker
     except Exception:

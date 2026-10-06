@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,17 @@ class Settings(BaseSettings):
     upload_dir: str = "./uploads"
     annual_interest_rate: float = 0.12  # used to work out the monthly EMI
     thresholds_path: str = "../ml/artifacts/thresholds.json"  # made by ml/analyze.py
+    run_tasks_inline: bool = False  # True on a single server without Redis/Celery (the free deploy)
+    frontend_dist: str = "../frontend/dist"  # the built React app, served by app/serve.py
+
+    @field_validator("database_url")
+    @classmethod
+    def use_psycopg_driver(cls, url: str) -> str:
+        # Hosted databases hand out "postgresql://..." or "postgres://..."; SQLAlchemy needs the driver name.
+        for prefix in ("postgres://", "postgresql://"):
+            if url.startswith(prefix):
+                return "postgresql+psycopg://" + url.removeprefix(prefix)
+        return url
 
 
 settings = Settings()
