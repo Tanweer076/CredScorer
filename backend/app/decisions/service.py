@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.applications.models import Application
-from app.applications.status import check_transition
+from app.applications.status import Status, check_transition
 from app.core.audit import audit
 from app.core.config import settings
 from app.decisions.engine import DEFAULT_THRESHOLDS, decide
@@ -56,3 +56,30 @@ def decide_application(db: Session, application: Application, credit_score: Cred
 def latest_decision(db: Session, application_id: int) -> Decision | None:
     return db.scalars(select(Decision).where(Decision.application_id == application_id)
                       .order_by(Decision.id.desc()).limit(1)).first()
+
+
+def manual_decision(db: Session, application: Application, outcome: str, reason: str, underwriter_id: int) -> Decision:
+    """MANUAL_REVIEW -> APPROVED / REJECTED by a person. The caller commits."""
+    old = application.status
+    application.status = check_transition(old, outcome)  # only allowed from MANUAL_REVIEW
+    decision = Decision(application_id=application.id, outcome=outcome, decided_by=underwriter_id, reason=reason)
+    db.add(decision)
+    db.flush()
+    audit(db, actor_id=underwriter_id, action="STATUS_CHANGE", entity_type="application", entity_id=application.id,
+          before={"status": old}, after={"status": application.status})
+    audit(db, actor_id=underwriter_id, action="MANUAL_DECISION", entity_type="application",
+          entity_id=application.id, after={"decision_id": decision.id, "outcome": outcome, "reason": reason})
+    return decision
+
+
+def save_thresholds(db: Session, new: dict, admin_id: int) -> dict:
+    """Store thresholds in the settings table (they win over thresholds.json). The caller commits."""
+    before = get_thresholds(db)
+    row = db.get(Setting, THRESHOLDS_KEY)
+    if row is None:
+        db.add(Setting(key=THRESHOLDS_KEY, value=new))
+    else:
+        row.value = new
+    audit(db, actor_id=admin_id, action="THRESHOLD_UPDATE", entity_type="settings", entity_id=None,
+          before=before, after=new)
+    return {**DEFAULT_THRESHOLDS, **new, "source": "settings"}
