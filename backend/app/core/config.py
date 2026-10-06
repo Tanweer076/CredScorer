@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     gemini_model: str = "gemini-3.8-flash"
     model_path: str = "../ml/artifacts/model.joblib"
     upload_dir: str = "./uploads"
+    annual_interest_rate: float = 0.12  # used to work out the monthly EMI
 
 
 settings = Settings()

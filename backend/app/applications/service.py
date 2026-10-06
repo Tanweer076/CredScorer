@@ -26,5 +26,13 @@ def snapshot(application: Application) -> dict:
         "declared_monthly_income": str(application.declared_monthly_income),
         "employment_type": application.employment_type,
         "employment_years": application.employment_years,
+        "date_of_birth": application.date_of_birth.isoformat() if application.date_of_birth else None,
+        "children": application.children,
+        "family_members": application.family_members,
+        "owns_car": application.owns_car,
+        "owns_home": application.owns_home,
+        "education": application.education,
+        "family_status": application.family_status,
+        "housing_type": application.housing_type,
         "status": application.status,
     }

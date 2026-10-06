@@ -18,3 +18,13 @@ class CreditScore(Base):
     features: Mapped[dict] = mapped_column(JSONB)
     shap_reasons: Mapped[list] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+
+class BureauProfile(Base):
+    """Simulated credit bureau records, seeded from Kaggle's application_test data."""
+
+    __tablename__ = "bureau_profiles"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    source_id: Mapped[int] = mapped_column(unique=True)  # SK_ID_CURR in the Kaggle data
+    data: Mapped[dict] = mapped_column(JSONB)

@@ -50,4 +50,12 @@ VALID_APPLICATION = {
     "declared_monthly_income": "60000.00",
     "employment_type": "salaried",
     "employment_years": 3.5,
+    "date_of_birth": "1992-05-14",
+    "children": 1,
+    "family_members": 3,
+    "owns_car": False,
+    "owns_home": True,
+    "education": "higher",
+    "family_status": "married",
+    "housing_type": "owned",
 }
