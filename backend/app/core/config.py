@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me"
     jwt_expire_minutes: int = 60
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-2.5-flash"
+    gemini_model: str = "gemini-3.8-flash"
     model_path: str = "../ml/artifacts/model.joblib"
     upload_dir: str = "./uploads"
 
