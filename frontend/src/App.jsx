@@ -2,12 +2,15 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, homeFor, useAuth } from './auth'
 import Layout from './components/Layout'
 import RequireRole from './components/RequireRole'
+import AdminDashboard from './pages/admin/AdminDashboard'
+import AuditLog from './pages/admin/AuditLog'
 import ApplicationDetail from './pages/applicant/ApplicationDetail'
 import MyApplications from './pages/applicant/MyApplications'
 import NewApplication from './pages/applicant/NewApplication'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
-import ComingSoon from './pages/staff/ComingSoon'
+import ReviewApplication from './pages/staff/ReviewApplication'
+import ReviewQueue from './pages/staff/ReviewQueue'
 
 function Home() {
   const { user, loading } = useAuth()
@@ -31,11 +34,13 @@ export default function App() {
           </Route>
 
           <Route element={<RequireRole roles={['underwriter', 'admin']}><Layout /></RequireRole>}>
-            <Route path="/underwriter" element={<ComingSoon title="Review queue" />} />
+            <Route path="/underwriter" element={<ReviewQueue />} />
+            <Route path="/underwriter/applications/:id" element={<ReviewApplication />} />
           </Route>
 
           <Route element={<RequireRole roles={['admin']}><Layout /></RequireRole>}>
-            <Route path="/admin" element={<ComingSoon title="Admin dashboard" />} />
+            <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/audit" element={<AuditLog />} />
           </Route>
 
           <Route path="*" element={<Home />} />

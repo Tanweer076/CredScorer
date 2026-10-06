@@ -27,7 +27,11 @@ export function errorMessage(error) {
   if (typeof detail === 'string') return detail
   if (Array.isArray(detail)) {
     // Validation errors: [{loc: ["body", "term_months"], msg: "..."}]
-    return detail.map((d) => `${d.loc[d.loc.length - 1]}: ${d.msg}`).join('; ')
+    return detail.map((d) => {
+      const field = d.loc[d.loc.length - 1]
+      const message = d.msg.replace(/^Value error, /, '')
+      return field === 'body' ? message : `${field}: ${message}` // "body" = a rule about several fields
+    }).join('; ')
   }
   return error.message || 'Something went wrong'
 }

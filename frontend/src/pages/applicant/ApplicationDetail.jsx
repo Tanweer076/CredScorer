@@ -20,11 +20,13 @@ async function getOrNull(url) {
   }
 }
 
-// Everything on this page, fetched together.
+// Everything on this page. The order matters: the worker can finish a step between two requests.
+// Reading the documents first, then the application, then its score and decision means we never
+// see a finished step without its result (and so never stop checking too early).
 async function fetchAll(id) {
-  const [application, documents, score, decision] = await Promise.all([
-    api.get(`/applications/${id}`).then((r) => r.data),
-    api.get(`/applications/${id}/documents`).then((r) => r.data),
+  const documents = (await api.get(`/applications/${id}/documents`)).data
+  const application = (await api.get(`/applications/${id}`)).data
+  const [score, decision] = await Promise.all([
     getOrNull(`/applications/${id}/score`),
     getOrNull(`/applications/${id}/decision`),
   ])
