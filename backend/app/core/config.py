@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     model_path: str = "../ml/artifacts/model.joblib"
     upload_dir: str = "./uploads"
     annual_interest_rate: float = 0.12  # used to work out the monthly EMI
+    thresholds_path: str = "../ml/artifacts/thresholds.json"  # made by ml/analyze.py
 
 
 settings = Settings()

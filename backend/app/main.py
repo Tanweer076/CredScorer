@@ -6,6 +6,7 @@ import app.models  # noqa: F401  (registers every table)
 from app.applications.router import router as applications_router
 from app.auth.router import router as auth_router
 from app.core.config import settings
+from app.decisions.router import router as decisions_router
 from app.documents.router import router as documents_router
 from app.scoring.model import Scorer
 from app.scoring.router import router as scoring_router
@@ -23,6 +24,7 @@ app.include_router(auth_router)
 app.include_router(applications_router)
 app.include_router(documents_router)
 app.include_router(scoring_router)
+app.include_router(decisions_router)
 
 
 @app.get("/health")

@@ -140,7 +140,7 @@ def test_other_applicants_cannot_see_extraction(client, db, applicant):
     assert response.status_code == 404
 
 
-def test_verified_application_is_scored_automatically(client, db, applicant, scorer, monkeypatch):
+def test_verified_application_is_scored_and_decided_automatically(client, db, applicant, scorer, monkeypatch):
     headers, app_id = applicant
     monkeypatch.setattr(tasks, "_scorer", scorer)
     process_document(db, upload(client, headers, app_id, "salary_slip"), returns(GOOD_SLIP))
@@ -148,8 +148,9 @@ def test_verified_application_is_scored_automatically(client, db, applicant, sco
 
     tasks.score_verified_application(db, app_id)
 
-    assert db.get(Application, app_id).status == "SCORED"
+    assert db.get(Application, app_id).status in {"APPROVED", "REJECTED", "MANUAL_REVIEW"}
     assert db.scalar(select(CreditScore).where(CreditScore.application_id == app_id)) is not None
     actions = db.scalars(select(AuditLog.action).where(AuditLog.entity_type == "application",
                                                        AuditLog.entity_id == app_id).order_by(AuditLog.id)).all()
-    assert actions[-3:] == ["STATUS_CHANGE", "STATUS_CHANGE", "APPLICATION_SCORED"]
+    # DOCS_VERIFIED, SCORED, scored, decided
+    assert actions[-5:] == ["STATUS_CHANGE", "STATUS_CHANGE", "APPLICATION_SCORED", "STATUS_CHANGE", "AUTO_DECISION"]

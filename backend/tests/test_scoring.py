@@ -121,17 +121,17 @@ def test_old_application_without_new_fields_gets_422(client, db, scorer):
     assert "education" in response.json()["detail"]
 
 
-def test_verified_application_moves_to_scored(client, db, scorer):
+def test_verified_application_is_scored_and_decided(client, db, scorer):
     headers = signup_and_login(client)
     app_id = create_application(client, headers)
-    db.get(Application, app_id).status = "DOCS_VERIFIED"  # Phase 5 will do this for real
+    db.get(Application, app_id).status = "DOCS_VERIFIED"  # normally done by the document worker
     db.commit()
 
     response = client.post(f"/applications/{app_id}/score", headers=headers)
 
-    assert response.json()["status"] == "SCORED"
+    assert response.json()["status"] in {"APPROVED", "REJECTED", "MANUAL_REVIEW"}
     actions = db.scalars(select(AuditLog.action).where(AuditLog.entity_id == app_id).order_by(AuditLog.id)).all()
-    assert actions[-2:] == ["STATUS_CHANGE", "APPLICATION_SCORED"]
+    assert actions[-4:] == ["STATUS_CHANGE", "APPLICATION_SCORED", "STATUS_CHANGE", "AUTO_DECISION"]
 
 
 def test_decided_application_cannot_be_rescored(client, db, scorer):

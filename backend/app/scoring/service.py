@@ -5,6 +5,7 @@ from app.applications.models import Application
 from app.applications.status import Status, check_transition
 from app.auth.models import User
 from app.core.audit import audit
+from app.decisions.service import decide_application
 from app.scoring.bureau import get_bureau_record
 from app.scoring.features import build_feature_row
 from app.scoring.model import Scorer
@@ -22,6 +23,7 @@ def score_and_save(db: Session, application: Application, scorer: Scorer, actor_
     """Score the application and store the result. The caller commits.
 
     actor_id is None when the system scores automatically (after documents are verified).
+    A verified application is then decided straight away (Phase 6).
     """
     row = features_for(db, application)
     result = scorer.score(row)
@@ -42,4 +44,6 @@ def score_and_save(db: Session, application: Application, scorer: Scorer, actor_
     audit(db, actor_id=actor_id, action="APPLICATION_SCORED", entity_type="application", entity_id=application.id,
           after={"credit_score_id": credit_score.id, "pd": result["pd"], "score": result["score"],
                  "model_version": scorer.version})
+    if application.status == Status.SCORED:
+        decide_application(db, application, credit_score)  # SCORED -> APPROVED / REJECTED / MANUAL_REVIEW
     return credit_score, result
