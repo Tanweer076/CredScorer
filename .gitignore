@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+ml/data/
+mlruns/
+uploads/
+node_modules/
+dist/
+kaggle.json
