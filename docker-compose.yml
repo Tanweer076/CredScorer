@@ -16,5 +16,44 @@ services:
     image: redis:7
     ports: ["6379:6379"]
 
+  # FastAPI. Runs the database migrations on start.
+  api:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    env_file: backend/.env  # GEMINI_API_KEY, GEMINI_MODEL, JWT_SECRET
+    environment:  # these win over backend/.env: inside Docker, the other services have their own names
+      DATABASE_URL: postgresql+psycopg://lendwise:lendwise@postgres:5432/lendwise
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /data/uploads
+      MODEL_PATH: /app/ml/artifacts/model.joblib
+      THRESHOLDS_PATH: /app/ml/artifacts/thresholds.json
+    ports: ["8000:8000"]
+    volumes: [uploads:/data/uploads]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  # Celery worker: same image, different command.
+  worker:
+    build: { context: ., dockerfile: backend/Dockerfile }
+    command: celery -A app.core.celery_app.celery worker --loglevel=info --concurrency=2
+    env_file: backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg://lendwise:lendwise@postgres:5432/lendwise
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /data/uploads
+      MODEL_PATH: /app/ml/artifacts/model.joblib
+      THRESHOLDS_PATH: /app/ml/artifacts/thresholds.json
+    volumes: [uploads:/data/uploads]  # the worker reads the PDFs the API saved
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+
+  # React app served by nginx, which forwards /api to the api service.
+  web:
+    build: ./frontend
+    ports: ["8080:80"]
+    depends_on: [api]
+
 volumes:
   pgdata:
+  uploads:

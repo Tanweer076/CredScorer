@@ -1,0 +1,13 @@
+# Files Docker must NOT copy into images: secrets, virtual envs, big data, build output.
+.git
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/node_modules
+frontend/dist
+backend/.env
+backend/uploads
+ml/data
+ml/mlruns
+ml/mlflow.db
+ml/notebooks
