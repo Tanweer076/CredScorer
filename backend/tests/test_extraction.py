@@ -68,7 +68,7 @@ def test_bank_statement_problems_add_up():
     result = validate(statement(credits=(20000, 20000), balances=[5000, -2000]), "bank_statement", 60000, "Asha Rao")
     assert not result.passed
     assert len(result.issues) == 3  # too few months, credits too low, overdrawn
-    assert result.confidence == 0.4
+    assert result.confidence == 0.3
 
 
 def test_pdf_text_reads_a_generated_pdf(tmp_path):

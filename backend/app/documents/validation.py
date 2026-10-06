@@ -91,6 +91,6 @@ def _check_bank_statement(doc: ExtractedDoc, declared: float, result: Validation
         # Salary credits are take-home pay, so they are usually 5-30% below declared (gross) income.
         if not 0.7 * declared <= average <= 1.15 * declared:
             result.flag(f"average salary credit ({average:,.0f}) does not fit the declared income "
-                        f"({declared:,.0f})", 0.3)
+                        f"({declared:,.0f})", 0.4)
     if any(m.closing_balance is not None and m.closing_balance < 0 for m in doc.months):
         result.flag("account was overdrawn in at least one month", 0.1)

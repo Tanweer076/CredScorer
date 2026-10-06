@@ -21,6 +21,16 @@ def db():
     session.close()
 
 
+@pytest.fixture(autouse=True)
+def queued_tasks(monkeypatch):
+    """Don't send real Celery tasks during tests; record the document ids instead."""
+    from app.documents.tasks import extract_document
+
+    queued = []
+    monkeypatch.setattr(extract_document, "delay", lambda document_id: queued.append(document_id))
+    return queued
+
+
 @pytest.fixture
 def client(db):
     app.dependency_overrides[get_db] = lambda: db
@@ -32,6 +42,7 @@ def signup_and_login(client, email="asha@example.com", password="secret123", nam
     client.post("/auth/signup", json={"email": email, "password": password, "full_name": name})
     token = client.post("/auth/login", data={"username": email, "password": password}).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
 
 def staff_headers(client, db, role="underwriter", email="uw@example.com", password="staffpass"):
     from app.auth.models import User

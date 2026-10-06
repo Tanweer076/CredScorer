@@ -4,17 +4,16 @@ from sqlalchemy.orm import Session
 
 from app.applications.models import Application
 from app.applications.service import get_application_for_user
-from app.applications.status import Status, check_transition
+from app.applications.status import Status
 from app.auth.models import User
 from app.auth.security import get_current_user
-from app.core.audit import audit
 from app.core.db import get_db
-from app.scoring.bureau import get_bureau_record
-from app.scoring.features import MissingApplicationData, build_feature_row
+from app.scoring.features import MissingApplicationData
 from app.scoring.model import Scorer
 from app.scoring.models import CreditScore
 from app.scoring.reasons import recommendations, score_band, top_reasons
 from app.scoring.schemas import ScenarioOut, ScoreOut, WhatIfIn, WhatIfOut
+from app.scoring.service import features_for, score_and_save
 
 router = APIRouter(prefix="/applications/{application_id}", tags=["scoring"])
 
@@ -29,10 +28,9 @@ def get_scorer(request: Request) -> Scorer:
     return scorer
 
 
-def _features_for(db: Session, application: Application, overrides: dict | None = None) -> dict:
-    owner = db.get(User, application.user_id)
+def _features_or_422(db: Session, application: Application, overrides: dict | None = None) -> dict:
     try:
-        return build_feature_row(application, get_bureau_record(db, owner), overrides)
+        return features_for(db, application, overrides)
     except MissingApplicationData as exc:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
 
@@ -48,30 +46,15 @@ def score_application(
     if application.status not in SCORABLE:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail=f"Application is {application.status}; it can no longer be scored")
-
-    row = _features_for(db, application)
-    result = scorer.score(row)
-    # Store every feature's impact (sorted, biggest first) so underwriters can see the full picture later.
-    all_reasons = top_reasons(result["shap"], row, n=len(result["shap"]))
-    credit_score = CreditScore(application_id=application.id, pd=result["pd"], score=result["score"],
-                               model_version=scorer.version, features=row, shap_reasons=all_reasons)
-    db.add(credit_score)
-
-    # Only a verified application moves forward in the status flow. Before documents are
-    # verified (Phase 5), the score is stored as a preliminary result.
-    if application.status == Status.DOCS_VERIFIED:
-        old = application.status
-        application.status = check_transition(old, Status.SCORED)
-        audit(db, actor_id=user.id, action="STATUS_CHANGE", entity_type="application",
-              entity_id=application.id, before={"status": old}, after={"status": application.status})
-    db.flush()
-    audit(db, actor_id=user.id, action="APPLICATION_SCORED", entity_type="application", entity_id=application.id,
-          after={"credit_score_id": credit_score.id, "pd": result["pd"], "score": result["score"],
-                 "model_version": scorer.version})
+    try:
+        credit_score, result = score_and_save(db, application, scorer, actor_id=user.id)
+    except MissingApplicationData as exc:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     db.commit()
     db.refresh(credit_score)
     return ScoreOut(application_id=application.id, pd=result["pd"], score=result["score"],
-                    band=score_band(result["score"]), model_version=scorer.version, reasons=all_reasons[:3],
+                    band=score_band(result["score"]), model_version=scorer.version,
+                    reasons=credit_score.shap_reasons[:3],
                     recommendations=recommendations(result["shap"], result["score"]),
                     status=application.status, created_at=credit_score.created_at)
 
@@ -109,7 +92,7 @@ def what_if(
     overrides = changes.model_dump(exclude_none=True)
     if not overrides:
         raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Send at least one value to change")
-    current = _scenario(scorer, _features_for(db, application))
-    scenario = _scenario(scorer, _features_for(db, application, overrides))
+    current = _scenario(scorer, _features_or_422(db, application))
+    scenario = _scenario(scorer, _features_or_422(db, application, overrides))
     return WhatIfOut(application_id=application.id, changes=overrides, current=current, scenario=scenario,
                      score_change=scenario.score - current.score)
