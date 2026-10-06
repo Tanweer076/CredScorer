@@ -32,3 +32,22 @@ def signup_and_login(client, email="asha@example.com", password="secret123", nam
     client.post("/auth/signup", json={"email": email, "password": password, "full_name": name})
     token = client.post("/auth/login", data={"username": email, "password": password}).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+def staff_headers(client, db, role="underwriter", email="uw@example.com", password="staffpass"):
+    from app.auth.models import User
+    from app.auth.security import hash_password
+
+    db.add(User(email=email, full_name="Staff Member", password_hash=hash_password(password), role=role))
+    db.commit()
+    token = client.post("/auth/login", data={"username": email, "password": password}).json()["access_token"]
+    return {"Authorization": f"Bearer {token}"}
+
+
+VALID_APPLICATION = {
+    "amount_requested": "250000.00",
+    "term_months": 24,
+    "purpose": "Home renovation",
+    "declared_monthly_income": "60000.00",
+    "employment_type": "salaried",
+    "employment_years": 3.5,
+}
