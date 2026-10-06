@@ -4,6 +4,7 @@ __pycache__/
 .env
 ml/data/
 mlruns/
+mlflow.db
 uploads/
 node_modules/
 dist/
