@@ -100,3 +100,12 @@ def test_extract_parses_gemini_json(monkeypatch):
 
     assert doc.monthly_gross_salary == 60000
     assert "Gross Earnings Rs. 60,000" in sent["contents"]
+
+@pytest.mark.parametrize("declared, credit", [
+    (100000, 115000),  # exactly 115% of declared income
+    (50000, 57500),
+    (100000, 70000),  # exactly 70%
+])
+def test_salary_credits_exactly_at_the_limits_pass(declared, credit):
+    result = validate(statement(credits=(credit,) * 3), "bank_statement", declared, "Asha Rao")
+    assert result.issues == [] and result.confidence == 1.0

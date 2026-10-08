@@ -78,3 +78,9 @@ def test_cannot_decide_an_application_not_in_review(client, db):
     response = client.post(f"/underwriter/applications/{app_id}/decision",
                            json={"outcome": "APPROVED", "reason": REASON}, headers=staff_headers(client, db))
     assert response.status_code == 409
+
+def test_reason_of_only_spaces_is_rejected(client, db, in_review):
+    _, app_id = in_review
+    response = client.post(f"/underwriter/applications/{app_id}/decision",
+                           json={"outcome": "APPROVED", "reason": " " * 12 + "ok"}, headers=staff_headers(client, db))
+    assert response.status_code == 422

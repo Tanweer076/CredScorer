@@ -74,6 +74,9 @@ def latest_documents(db: Session, application_id: int) -> dict[str, Document]:
 
 def verify_application(db: Session, application: Application) -> bool:
     """Move the application to DOCS_VERIFIED when every required document passed."""
+    # Lock the row: when two documents finish at once, the second worker waits here until the
+    # first commits, then sees both documents done. Without it, neither sees the other's result.
+    db.refresh(application, with_for_update=True)
     if application.status != Status.SUBMITTED:
         return False
     latest = latest_documents(db, application.id)

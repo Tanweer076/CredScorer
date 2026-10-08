@@ -89,7 +89,8 @@ def _check_bank_statement(doc: ExtractedDoc, declared: float, result: Validation
     elif declared > 0:
         average = sum(credits) / len(credits)
         # Salary credits are take-home pay, so they are usually 5-30% below declared (gross) income.
-        if not 0.7 * declared <= average <= 1.15 * declared:
+        # Compare the ratio, not 1.15 * declared: that product rounds below 115% for many incomes.
+        if not 0.7 <= average / declared <= 1.15:
             result.flag(f"average salary credit ({average:,.0f}) does not fit the declared income "
                         f"({declared:,.0f})", 0.4)
     if any(m.closing_balance is not None and m.closing_balance < 0 for m in doc.months):

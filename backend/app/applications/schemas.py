@@ -59,6 +59,14 @@ class ApplicationUpdate(BaseModel):
 
     _age = field_validator("date_of_birth")(_check_age)
 
+    @field_validator("*", mode="before")
+    @classmethod
+    def not_null(cls, value):
+        # Runs only for fields the client sent: leaving a field out keeps it, sending null is an error.
+        if value is None:
+            raise ValueError("cannot be null; leave the field out to keep its current value")
+        return value
+
 
 class ApplicationOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

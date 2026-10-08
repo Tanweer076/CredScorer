@@ -36,7 +36,8 @@ def decide_application(db: Session, application: Application, credit_score: Cred
     """SCORED -> APPROVED / REJECTED / MANUAL_REVIEW. The caller commits."""
     thresholds = get_thresholds(db)
     features = credit_score.features
-    emi_share = features["annuity"] / features["annual_income"]  # both are monthly amounts
+    income = features["annual_income"]  # both are monthly amounts
+    emi_share = features["annuity"] / income if income > 0 else None
     outcome, reasons = decide(credit_score.score, emi_share, thresholds)
 
     old = application.status
@@ -49,7 +50,8 @@ def decide_application(db: Session, application: Application, credit_score: Cred
     # Record the exact thresholds used, so the decision can be explained even after they change.
     audit(db, actor_id=None, action="AUTO_DECISION", entity_type="application", entity_id=application.id,
           after={"decision_id": decision.id, "outcome": outcome, "score": credit_score.score,
-                 "credit_score_id": credit_score.id, "emi_share": round(emi_share, 4), "thresholds": thresholds})
+                 "credit_score_id": credit_score.id, "emi_share": None if emi_share is None else round(emi_share, 4),
+                 "thresholds": thresholds})
     return decision
 
 

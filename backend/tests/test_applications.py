@@ -94,3 +94,11 @@ def test_allowed_transitions(current, new):
 def test_illegal_transitions(current, new):
     with pytest.raises(IllegalTransition):
         check_transition(current, new)
+
+@pytest.mark.parametrize("field", ["amount_requested", "term_months", "education", "date_of_birth"])
+def test_update_cannot_set_a_field_to_null(client, db, field):
+    headers = signup_and_login(client)
+    app_id = client.post("/applications", json=VALID_APPLICATION, headers=headers).json()["id"]
+    r = client.patch(f"/applications/{app_id}", json={field: None}, headers=headers)
+    assert r.status_code == 422
+    assert client.get(f"/applications/{app_id}", headers=headers).json()[field] is not None

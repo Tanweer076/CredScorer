@@ -154,3 +154,43 @@ def test_verified_application_is_scored_and_decided_automatically(client, db, ap
                                                        AuditLog.entity_id == app_id).order_by(AuditLog.id)).all()
     # DOCS_VERIFIED, SCORED, scored, decided
     assert actions[-5:] == ["STATUS_CHANGE", "STATUS_CHANGE", "APPLICATION_SCORED", "STATUS_CHANGE", "AUTO_DECISION"]
+
+def test_both_documents_finishing_at_once_still_verify(client, db, applicant, monkeypatch):
+    """Two workers finish the two documents at the same moment, each in its own transaction."""
+    import threading
+
+    from app.documents import service
+    from tests.conftest import TestSession
+
+    headers, app_id = applicant
+    slip_id = upload(client, headers, app_id, "salary_slip")
+    statement_id = upload(client, headers, app_id, "bank_statement")
+
+    # Hold both workers just before they look at the other document, so neither has committed yet.
+    both_saved = threading.Barrier(2, timeout=2)
+    original = service.latest_documents
+
+    def latest_documents_after_both_saved(session, application_id):
+        try:
+            both_saved.wait()
+        except threading.BrokenBarrierError:
+            pass  # the other worker is waiting for us (row lock): carry on
+        return original(session, application_id)
+
+    monkeypatch.setattr(service, "latest_documents", latest_documents_after_both_saved)
+    results = {}
+
+    def work(doc_id, doc):
+        with TestSession() as session:
+            results[doc_id] = process_document(session, doc_id, returns(doc))
+
+    threads = [threading.Thread(target=work, args=(slip_id, GOOD_SLIP)),
+               threading.Thread(target=work, args=(statement_id, GOOD_STATEMENT))]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=30)
+
+    db.expire_all()
+    assert db.get(Application, app_id).status == "DOCS_VERIFIED"
+    assert sorted(results.values(), key=lambda v: v is not None) == [None, app_id]  # exactly one worker moved it forward

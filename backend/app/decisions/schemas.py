@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.applications.schemas import ApplicationOut
 from app.documents.schemas import ExtractionOut
@@ -54,5 +54,7 @@ class ReviewDetail(BaseModel):
 
 
 class ManualDecisionIn(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)  # so spaces don't count towards the 10 characters
+
     outcome: Literal["APPROVED", "REJECTED"]
     reason: str = Field(min_length=10, max_length=2000, description="Why; shown to auditors. At least 10 characters.")

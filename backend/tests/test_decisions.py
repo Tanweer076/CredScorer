@@ -110,3 +110,22 @@ def test_others_cannot_see_the_decision(client, db, scorer):
     other = signup_and_login(client, email="ravi@example.com", name="Ravi Kumar")
 
     assert client.get(f"/applications/{app_id}/decision", headers=other).status_code == 404
+
+def test_no_income_is_never_auto_approved():
+    outcome, reasons = decide(700, None, T)  # no declared income: affordability can't be checked
+    assert outcome == "MANUAL_REVIEW"
+    assert "income" in reasons[0]
+
+
+def test_zero_income_application_is_decided_not_crashed(client, db, scorer):
+    set_thresholds(db, 0, 0)
+    headers = signup_and_login(client)
+    app_id = client.post("/applications", json={**VALID_APPLICATION, "declared_monthly_income": "0.00"},
+                         headers=headers).json()["id"]
+    db.get(Application, app_id).status = "DOCS_VERIFIED"
+    db.commit()
+
+    response = client.post(f"/applications/{app_id}/score", headers=headers)
+
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "MANUAL_REVIEW"
